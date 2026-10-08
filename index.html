@@ -208,6 +208,10 @@ button:disabled{opacity:.45;cursor:default}
 #qrg i{position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:#ff2d2d;box-shadow:0 0 8px 1px #ff2d2d}
 #qrinfo{color:#bbb;font-size:.8rem;text-align:center}
 #qrx{padding:11px 22px;background:#2b2b30;color:#fff;border:1px solid #555;border-radius:10px;font-size:14px;font-family:inherit;cursor:pointer}
+#qrtorch{display:flex;align-items:center;gap:8px;color:#fff;font-size:15px;cursor:pointer;user-select:none;padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.08)}
+#qrtorch input{width:20px;height:20px;accent-color:#f5c518;cursor:pointer}
+#qrtorch.off{opacity:.5;cursor:default}
+#qrtorch.off input{cursor:default}
 #bc-zoom-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;padding:24px}
 #bc-zoom-modal.open{display:flex}
 #bc-zoom-inner{background:#fff;border-radius:var(--r);padding:24px 20px 20px;width:100%;max-width:480px;text-align:center;position:relative}
@@ -509,6 +513,7 @@ button:disabled{opacity:.45;cursor:default}
 <div id="qr" hidden>
   <div id="qrbox"><video id="qrv" playsinline muted autoplay></video><div id="qrg"><i></i></div></div>
   <div id="qrinfo"></div>
+  <label id="qrtorch"><input type="checkbox" id="qrtorch-cb"><span id="qrtorch-label">🔦 플래시</span></label>
   <button id="qrx" type="button">닫기</button>
 </div>
 
@@ -2102,7 +2107,12 @@ _updateStickyOffsets();window.addEventListener('load',_updateStickyOffsets);wind
 window.addEventListener('scroll',_updateBcRowStuck,{passive:true});window.addEventListener('resize',_updateBcRowStuck);_updateBcRowStuck();
 (function(){const listWrap=document.getElementById('list-wrap');if(!listWrap)return;listWrap.addEventListener('click',function(e){const t=e.target.closest('[data-action]');if(!t)return;const action=t.dataset.action,id=t.dataset.id,ean13=t.dataset.ean13,delta=t.dataset.delta;switch(action){case'openBcZoom':openBcZoom(ean13);break;case'emergencyOverwrite':emergencyOverwrite(id);break;case'toggleMark':toggleMark(id);break;case'fillForm':fillForm(id);break;case'moveToTemp':moveToTemp(id);break;case'moveToTrash':moveToTrash(id);break;case'restoreItem':restoreItem(id);break;case'permanentDelete':permanentDelete(id);break;case'fillAdjust':fillAdjust(id,+delta);break;case'openFillReconcile':openFillReconcile(id);break;case'openFillEditItem':openFillEditItem(id);break;case'deleteFillItem':deleteFillItem(id);break;}});})();
 const SCAN_BOX={x:.05,y:.3,w:.9,h:.4};const scanCanvas=document.createElement('canvas');const scanCtx=scanCanvas.getContext('2d',{willReadFrequently:true});const scanDec=new ZXing.MultiFormatReader();{const hints=new Map(),F=ZXing.BarcodeFormat;hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E,F.CODE_128,F.ITF,F.CODE_39]);hints.set(ZXing.DecodeHintType.TRY_HARDER,true);scanDec.setHints(hints);const g=$('qrg').style;g.left=SCAN_BOX.x*100+'%';g.top=SCAN_BOX.y*100+'%';g.width=SCAN_BOX.w*100+'%';g.height=SCAN_BOX.h*100+'%';}
-let scanStream=null,scanTimer=0,scanOpening=false;function closeScan(){clearTimeout(scanTimer);if(scanStream)scanStream.getTracks().forEach(t=>t.stop());scanStream=null;$('qrv').srcObject=null;$('qr').hidden=true;}
+let scanStream=null,scanTimer=0,scanOpening=false;const TORCH_KEY='scanTorch';const torchWanted=()=>{try{return localStorage.getItem(TORCH_KEY)==='1';}catch(e){return false;}};const scanTrack=()=>scanStream&&scanStream.getVideoTracks()[0];function torchSupported(){const t=scanTrack();try{return!!(t&&t.getCapabilities&&t.getCapabilities().torch);}catch(e){return false;}}
+async function setTorch(on){const t=scanTrack();if(!t||!torchSupported())return false;try{await t.applyConstraints({advanced:[{torch:!!on}]});return true;}catch(e){return false;}}
+function _refreshTorchUI(){const ok=torchSupported();$('qrtorch-cb').checked=torchWanted();$('qrtorch-cb').disabled=!ok;$('qrtorch').classList.toggle('off',!ok);$('qrtorch-label').textContent=ok?'🔦 플래시':'🔦 플래시 (이 카메라는 지원 안 함)';}
+$('qrtorch-cb').addEventListener('change',async e=>{const on=e.target.checked;try{localStorage.setItem(TORCH_KEY,on?'1':'0');}catch(err){}
+if(!(await setTorch(on))&&on)showMsg('플래시를 켜지 못했습니다.','warn',2500);});function closeScan(){clearTimeout(scanTimer);if(scanStream){setTorch(false);scanStream.getTracks().forEach(t=>t.stop());}
+scanStream=null;$('qrv').srcObject=null;$('qr').hidden=true;}
 function _scanDone(text){const raw=String(text).replace(/\D/g,'');if(!raw){beep();showMsg('숫자 바코드가 아닙니다: '+text,'error',3000);return;}
 _vib(60);$('bc').value=raw;const len=_padBc(raw).length;const modeOn=cfg.lookupMode||cfg.deleteMode||cfg.tempMode||cfg.markMode||cfg.fillMode;if(modeOn||len===18||cfg.expAutoRegister){_bcHandleEnter($('bc'));return;}
 showMsg(`바코드를 읽었습니다: ${raw} — 유통기한을 고르고 등록하세요`,'notice',3000);focusBc();}
@@ -2110,7 +2120,7 @@ async function openScan(){if(_isEditMode){beep();showMsg('수정 중에는 바�
 if(scanStream||scanOpening)return;if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){beep();showMsg('이 환경에서는 카메라를 쓸 수 없습니다 (HTTPS 또는 로컬 파일로 여세요).','error',4000);return;}
 scanOpening=true;let stream;try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080},resizeMode:'none'}});}catch(e){beep();showMsg('카메라를 사용할 수 없습니다. ('+(e&&e.name||'오류')+')','error',4000);return;}finally{scanOpening=false;}
 const v=$('qrv');scanStream=stream;v.srcObject=stream;$('qrinfo').textContent='';$('qr').hidden=false;try{await v.play();}catch(e){}
-const tick=()=>{if(scanStream!==stream)return;const W=v.videoWidth,H=v.videoHeight;if(W&&H){const sw=Math.round(W*SCAN_BOX.w),sh=Math.round(H*SCAN_BOX.h);scanCanvas.width=sw;scanCanvas.height=sh;scanCtx.drawImage(v,Math.round(W*SCAN_BOX.x),Math.round(H*SCAN_BOX.y),sw,sh,0,0,sw,sh);$('qrinfo').textContent='카메라 '+W+'×'+H+' · 테두리 안에 바코드를 가로로 맞추세요';try{const text=scanDec.decodeWithState(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(scanCanvas)))).getText();if(text){closeScan();_scanDone(text);return;}}catch(e){}}
+_refreshTorchUI();if(torchWanted())setTorch(true);const tick=()=>{if(scanStream!==stream)return;const W=v.videoWidth,H=v.videoHeight;if(W&&H){const sw=Math.round(W*SCAN_BOX.w),sh=Math.round(H*SCAN_BOX.h);scanCanvas.width=sw;scanCanvas.height=sh;scanCtx.drawImage(v,Math.round(W*SCAN_BOX.x),Math.round(H*SCAN_BOX.y),sw,sh,0,0,sw,sh);$('qrinfo').textContent='카메라 '+W+'×'+H+' · 테두리 안에 바코드를 가로로 맞추세요';try{const text=scanDec.decodeWithState(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(new ZXing.HTMLCanvasElementLuminanceSource(scanCanvas)))).getText();if(text){closeScan();_scanDone(text);return;}}catch(e){}}
 scanTimer=setTimeout(tick,120);};tick();}
 function _refreshScanBtn(){const b=$('bc-scan-btn');if(b)b.disabled=_isEditMode;}
 $('qrx').onclick=closeScan;$('bc-scan-btn').onclick=openScan;document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('qr').hidden)closeScan();});
