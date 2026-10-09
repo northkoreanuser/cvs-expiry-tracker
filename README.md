@@ -1,13 +1,33 @@
 [cvs-expiry-tracker](https://northkoreanuser.github.io/cvs-expiry-tracker/)
 
 ```
-IDC License (I Don't Care)
+THIRD-PARTY SOFTWARE NOTICES
 
-내가 작성한 코드는 알아서 마음껏 써라. 복사, 수정, 재배포, 상업적 이용 전부 신경 안 쓴다.
+This project uses or references the following third-party software and resources.
 
-단, 번들링된 외부 코드나 라이브러리를 재배포할 때는 각 라이선스를 알아서 조사하고 준수해라.
+1. ZXing JavaScript Library
+   Version: 0.21.3
+   License: Apache License 2.0
+   Source: https://github.com/zxing-js/library
+   License text: https://www.apache.org/licenses/LICENSE-2.0.txt
 
-내가 작성하지 않은 코드의 권리까지 대신 허가해 주지는 않는다.
+2. Dexie.js
+   Version: 4.4.2
+   License: Apache License 2.0
+   Source: https://github.com/dexie/Dexie.js
+   License text: https://www.apache.org/licenses/LICENSE-2.0.txt
 
-이 소프트웨어는 어떠한 보증도 없이 제공된다.
+3. Inter
+   Resource: Google Fonts
+   License: SIL Open Font License 1.1
+   Source: https://github.com/rsms/inter
+   License text: https://openfontlicense.org/documents/OFL.txt
+
+4. JetBrains Mono
+   Resource: Google Fonts
+   License: SIL Open Font License 1.1
+   Source: https://github.com/JetBrains/JetBrainsMono
+   License text: https://openfontlicense.org/documents/OFL.txt
+
+The above notices identify third-party components and their respective licenses. Each component remains subject to its applicable license terms.
 ```
